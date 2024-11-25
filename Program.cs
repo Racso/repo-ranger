@@ -1,12 +1,14 @@
 ﻿using System.Text.Json;
 using Lasso;
 
-string testPath = "C:\\Dev\\Lasso";
-string testLassoPath = Path.Combine(testPath, "lasso.json");
-string testlassoAuthPath = Path.Combine(testPath, "lasso-auth.json");
+ProgramArgs pargs = new ProgramArgs(args);
 
-List<Repository> repositories = ReadRepositoriesFromJson(testLassoPath);
-GitHubAuthData authData = JsonSerializer.Deserialize<GitHubAuthData>(File.ReadAllText(testlassoAuthPath));
+string baseDirectory = pargs.GetString("--base-dir", Environment.CurrentDirectory);
+string lassoPath = pargs.GetString("--lasso-json", Path.Combine(baseDirectory, "lasso.json"));
+string lassoAuthPath = pargs.GetString("--lasso-auth-json", Path.Combine(baseDirectory, "lasso-auth.json"));
+
+List<Repository> repositories = ReadRepositoriesFromJson(lassoPath);
+GitHubAuthData authData = JsonSerializer.Deserialize<GitHubAuthData>(File.ReadAllText(lassoAuthPath));
 
 ILogger logger = new ConsoleLogger();
 VersionManager versions = new VersionManager();
@@ -48,7 +50,7 @@ async Task ObtainRepoFilesAsync(Repository repo, string tag, string username, st
 {
     logger.Info($"Starting to obtain files for repository at {repo.Url}, version {tag}...");
 
-    string destinationPath = Path.Combine(Environment.CurrentDirectory, repo.Destination);
+    string destinationPath = Path.Combine(baseDirectory, repo.Destination);
 
     // Check if the destination folder exists and is not empty, then delete it
     if (Directory.Exists(destinationPath))
