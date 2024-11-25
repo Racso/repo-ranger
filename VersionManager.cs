@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
 
+namespace Lasso;
+
 class VersionManager
 {
     public List<string> FilterMatchingVersions(string versionDef, IEnumerable<string> availableVersions)

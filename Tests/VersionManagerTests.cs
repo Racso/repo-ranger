@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using Lasso;
+using NUnit.Framework;
 
 [TestFixture]
 public class VersionManagerTests

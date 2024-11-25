@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 
+namespace Lasso;
+
 public class CommandRunner
 {
     public async Task<List<ResultLine>> RunCommandAsync(string command)

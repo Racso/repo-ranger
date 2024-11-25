@@ -1,6 +1,6 @@
 ﻿namespace Lasso;
 
-public class FileUtils
+public static class FileUtils
 {
     public static void DeleteDirectory(string directory)
     {
