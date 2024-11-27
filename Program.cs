@@ -73,16 +73,3 @@ async Task ObtainRepoFilesAsync(Repository repo, string tag, string username, st
 
     logger.Info($"Finished obtaining files for repository at {repo.Url}.");
 }
-
-class Repository
-{
-    public string Url { get; set; }
-    public string Destination { get; set; }
-    public string Version { get; set; }
-}
-
-class GitHubAuthData
-{
-    public string Username { get; set; }
-    public string Token { get; set; }
-}
