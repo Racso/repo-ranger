@@ -18,9 +18,9 @@ public static class IntroAsciiWriter
     {
         string[] asciiArt = new[]
         {
-            "  ██ ",
-            " ██  ",
-            "  █  ",
+            "    ████  ",
+            "  ████    ",
+            "    ██    ",
         };
 
         ConsoleColor darkBlue = ConsoleColor.DarkBlue;
