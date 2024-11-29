@@ -6,36 +6,102 @@ ProgramArgs pargs = new ProgramArgs(args);
 string baseDirectory = pargs.GetString("--base-dir", Environment.CurrentDirectory);
 string lassoPath = pargs.GetString("--lasso-json", Path.Combine(baseDirectory, "lasso.json"));
 string lassoAuthPath = pargs.GetString("--lasso-auth-json", Path.Combine(baseDirectory, "lasso-auth.json"));
+string lockFilePath = pargs.GetString("--lock-file", Path.Combine(baseDirectory, "lasso.lock"));
+bool verbose = pargs.Has("--verbose") || pargs.Has("-v");
 
 List<Repository> repositories = ReadRepositoriesFromJson(lassoPath);
 GitHubAuthData authData = JsonSerializer.Deserialize<GitHubAuthData>(File.ReadAllText(lassoAuthPath));
 
-ILogger logger = new ConsoleLogger();
+ILogger logger = new ConsoleLogger { IsDebugEnabled = verbose };
 VersionManager versions = new VersionManager();
 CommandRunner commandRunner = new CommandRunner();
 GitHubOperations github = new GitHubOperations(commandRunner, logger);
+LockFileManager lockFileManager = new LockFileManager(lockFilePath);
 
 foreach (Repository repository in repositories)
 {
     logger.Info($"Processing repository at {repository.Url}...");
-    logger.Info($"Obtaining tags...");
-    List<string> tags = await github.GetRepoTagsAsync(repository.Url, authData.Username, authData.Token);
-    logger.Info($"Tags: {string.Join(", ", tags)}");
 
-    List<string> validVersions = versions.FilterMatchingVersions(repository.Version, tags);
-    logger.Info($"Valid versions for {repository.Version}: {string.Join(", ", validVersions)}");
+    RefData refToUse;
 
-    string highestVersion = versions.GetHighestVersion(validVersions);
-    logger.Info($"Best available version: {highestVersion}");
+    (RefType refType, string refName) = ParseVersion(repository.Version);
 
-    if (string.IsNullOrEmpty(highestVersion))
+    if (refType == RefType.Tag)
     {
-        logger.Info("No valid version found.");
-        continue;
+        logger.Debug($"Obtaining tags...");
+        List<RefData> tags = await github.GetRepoTagsAsync(repository.Url, authData.Username, authData.Token);
+        logger.Debug($"Tags: {string.Join(", ", tags)}");
+
+        List<RefData> validVersions = versions.FilterMatchingVersions(repository.Version, tags);
+        logger.Debug($"Valid version tags for {repository.Version}: {string.Join(", ", validVersions)}");
+
+        refToUse = versions.GetHighestVersion(validVersions);
+
+        if (string.IsNullOrEmpty(refToUse.Name))
+        {
+            logger.Error($"No valid version found for repository at {repository.Url}, version {repository.Version}.");
+            return;
+        }
+
+        logger.Debug($"Using tag '{refToUse.Name}' with hash {refToUse.Hash}.");
+    }
+    else
+    {
+        logger.Debug($"Obtaining hash for branch: {refName}...");
+        RefData branchRef = await github.GetBranchAsync(repository.Url, refName, authData.Username, authData.Token);
+        refToUse = branchRef;
+
+        if (string.IsNullOrEmpty(refToUse.Hash))
+        {
+            logger.Error("No valid branch found for repository at {repository.Url}, branch {refName}.");
+            return;
+        }
+
+        logger.Debug($"Using branch '{refToUse.Name}' with hash {refToUse.Hash}.");
     }
 
-    logger.Info($"Obtaining files for version {highestVersion}...");
-    await ObtainRepoFilesAsync(repository, highestVersion, authData.Username, authData.Token);
+    if (string.IsNullOrEmpty(refToUse.Hash))
+    {
+        logger.Error($"No valid hash found for repository at {repository.Url}, version {repository.Version}.");
+        return;
+    }
+
+    RepoLockData lockedData = lockFileManager.GetLockData(repository.Url);
+
+    if (lockedData != null && lockedData != RepoLockData.Empty)
+    {
+        if (lockedData.LockedHash == refToUse.Hash)
+        {
+            logger.Info($"Repository at {repository.Url} is already up to date. Skipping...");
+            continue;
+        }
+
+        if (lockedData.Version == refToUse.Name)
+            logger.Warn($"Repository at {repository.Url} is locked to version {refToUse.Name}, but the hash has changed. Forcing update.");
+    }
+
+    logger.Info($"Updating repository at {repository.Url}. Ref: {refToUse.Name}, hash: {refToUse.Hash}");
+    try
+    {
+        await ObtainRepoFilesAsync(repository, refToUse, authData.Username, authData.Token);
+        lockFileManager.Update(repository.Url, repository.Destination, refToUse);
+    }
+    catch (Exception ex)
+    {
+        logger.Error($"Failed to obtain files for repository at {repository.Url}: {ex.Message}");
+        throw;
+    }
+}
+
+lockFileManager.Commit();
+logger.Info("All repositories processed successfully. Lock file updated.");
+
+(RefType VersionType, string VersionValue) ParseVersion(string version)
+{
+    if (version.StartsWith("b:"))
+        return (RefType.Branch, version.Substring(2).Trim());
+
+    return (RefType.Tag, version.Trim());
 }
 
 List<Repository> ReadRepositoriesFromJson(string filePath)
@@ -46,30 +112,30 @@ List<Repository> ReadRepositoriesFromJson(string filePath)
     return data?["repositories"] ?? new List<Repository>();
 }
 
-async Task ObtainRepoFilesAsync(Repository repo, string tag, string username, string pat)
+async Task ObtainRepoFilesAsync(Repository repo, RefData refData, string username, string pat)
 {
-    logger.Info($"Starting to obtain files for repository at {repo.Url}, version {tag}...");
+    logger.Debug($"Starting to obtain files for repository at {repo.Url}, ref {refData}...");
 
-    string destinationPath = Path.Combine(baseDirectory, repo.Destination);
+    string destinationPath = Path.Combine(Environment.CurrentDirectory, repo.Destination);
 
     // Check if the destination folder exists and is not empty, then delete it
     if (Directory.Exists(destinationPath))
     {
-        logger.Info("Clearing existing destination directory...");
+        logger.Debug("Clearing existing destination directory...");
         FileUtils.DeleteDirectory(destinationPath);
     }
 
-    logger.Info($"Creating destination directory at: {destinationPath}");
+    logger.Debug($"Creating destination directory at: {destinationPath}");
     Directory.CreateDirectory(destinationPath);
 
-    await github.CloneRepoFromTag(repo.Url, tag, destinationPath, username, pat);
+    await github.CloneRepoFromRefName(repo.Url, refData.Name, destinationPath, username, pat);
 
     string gitFolderPath = Path.Combine(destinationPath, ".git");
     if (Directory.Exists(gitFolderPath))
     {
-        logger.Info("Removing .git folder...");
+        logger.Debug("Removing .git folder...");
         FileUtils.DeleteDirectory(gitFolderPath);
     }
 
-    logger.Info($"Finished obtaining files for repository at {repo.Url}.");
+    logger.Debug($"Finished obtaining files for repository at {repo.Url}.");
 }

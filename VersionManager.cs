@@ -4,15 +4,15 @@ namespace Lasso;
 
 class VersionManager
 {
-    public List<string> FilterMatchingVersions(string versionDef, IEnumerable<string> availableVersions)
+    public List<RefData> FilterMatchingVersions(string versionDef, IEnumerable<RefData> availableVersions)
     {
         string pattern = "^" + Regex.Escape(versionDef).Replace("\\*", ".*") + "$";
-        return availableVersions.Where(v => Regex.IsMatch(StripPrefix(v), pattern)).ToList();
+        return availableVersions.Where(v => Regex.IsMatch(StripPrefix(v.Name), pattern)).ToList();
     }
 
-    public string GetHighestVersion(IEnumerable<string> versions)
+    public RefData GetHighestVersion(IEnumerable<RefData> versions)
     {
-        return versions.OrderByDescending(v => new Version(StripPrefix(v))).FirstOrDefault();
+        return versions.OrderByDescending(v => new Version(StripPrefix(v.Name))).FirstOrDefault();
     }
 
     private string StripPrefix(string version)

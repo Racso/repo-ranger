@@ -13,14 +13,11 @@ public class GitHubOperations
         this.logger = logger;
     }
 
-    public async Task CloneRepoFromTag(string url, string tag, string directory, string username, string pat)
+    public async Task CloneRepoFromRefName(string url, string refName, string directory, string username, string pat)
     {
-        logger.Info($"Starting to obtain files for repository at {url}, version {tag}...");
+        logger.Debug($"Starting to obtain files for repository at {url}, version {refName}...");
 
         string destinationPath = Path.Combine(Environment.CurrentDirectory, directory);
-
-        logger.Info($"Creating destination directory at: {destinationPath}");
-        Directory.CreateDirectory(destinationPath);
 
         UriBuilder uriBuilder = new UriBuilder(url)
         {
@@ -29,8 +26,8 @@ public class GitHubOperations
         };
         string urlWithCredentials = uriBuilder.Uri.ToString();
 
-        string command = $"git clone --depth 1 --branch {tag} -c advice.detachedHead=false {urlWithCredentials} {destinationPath}";
-        logger.Info("Executing command: " + command);
+        string command = $"git clone --depth 1 --branch {refName} -c advice.detachedHead=false {urlWithCredentials} {destinationPath}";
+        logger.Debug("Cloning repository...");
 
         List<CommandRunner.ResultLine> resultLines = await commandRunner.RunCommandAsync(command);
 
@@ -43,21 +40,28 @@ public class GitHubOperations
         }
     }
 
-    public async Task<List<string>> GetRepoTagsAsync(string repoUrl, string username, string pat)
+    public async Task<List<RefData>> GetRepoTagsAsync(string repoUrl, string username, string pat)
     {
         string urlWithCredentials = repoUrl.Insert(8, $"{username}:{pat}@");
         string command = $"git ls-remote --tags {urlWithCredentials}";
 
         List<CommandRunner.ResultLine> resultLines = await commandRunner.RunCommandAsync(command);
-        List<string> output = new List<string>();
+        List<RefData> output = new List<RefData>();
 
         foreach (CommandRunner.ResultLine line in resultLines)
         {
             if (line.Type == CommandRunner.ResultLineType.Standard)
             {
-                Match match = Regex.Match(line.Text, @"refs/tags/(?<tag>[v0-9.]+)$");
+                Match match = Regex.Match(line.Text, @"(?<hash>[a-f0-9]+)\s+refs/tags/(?<tag>[v0-9.]+)$");
                 if (match.Success)
-                    output.Add(match.Groups["tag"].Value);
+                {
+                    output.Add(new RefData
+                    {
+                        Type = RefType.Tag,
+                        Name = match.Groups["tag"].Value,
+                        Hash = match.Groups["hash"].Value
+                    });
+                }
             }
             else
             {
@@ -66,5 +70,36 @@ public class GitHubOperations
         }
 
         return output;
+    }
+
+    public async Task<RefData> GetBranchAsync(string repoUrl, string branchName, string username, string pat)
+    {
+        string urlWithCredentials = repoUrl.Insert(8, $"{username}:{pat}@");
+        string command = $"git ls-remote --heads {urlWithCredentials} {branchName}";
+
+        List<CommandRunner.ResultLine> resultLines = await commandRunner.RunCommandAsync(command);
+
+        foreach (CommandRunner.ResultLine line in resultLines)
+        {
+            if (line.Type == CommandRunner.ResultLineType.Standard)
+            {
+                Match match = Regex.Match(line.Text, @"(?<hash>[a-f0-9]+)\s+refs/heads/(?<branch>[^\s]+)$");
+                if (match.Success && match.Groups["branch"].Value == branchName)
+                {
+                    return new RefData
+                    {
+                        Type = RefType.Branch,
+                        Name = branchName,
+                        Hash = match.Groups["hash"].Value
+                    };
+                }
+            }
+            else
+            {
+                logger.Error(line.Text);
+            }
+        }
+
+        return new RefData();
     }
 }
