@@ -4,7 +4,7 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 .idea/
-lasso-auth.json
-lasso.json
+ranger-auth.json
+ranger.json
 Lasso.sln.DotSettings.user
 tmp/

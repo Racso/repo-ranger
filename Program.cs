@@ -4,19 +4,19 @@ using Lasso;
 ProgramArgs pargs = new ProgramArgs(args);
 
 string baseDirectory = pargs.GetString("--base-dir", Environment.CurrentDirectory);
-string lassoPath = pargs.GetString("--lasso-json", Path.Combine(baseDirectory, "lasso.json"));
-string lassoAuthPath = pargs.GetString("--lasso-auth-json", Path.Combine(baseDirectory, "lasso-auth.json"));
-string lockFilePath = pargs.GetString("--lock-file", Path.Combine(baseDirectory, "lasso.lock"));
+string jsonPath = pargs.GetString("--json", Path.Combine(baseDirectory, "ranger.json"));
+string authPath = pargs.GetString("--auth", Path.Combine(baseDirectory, "ranger-auth.json"));
+string lockPath = pargs.GetString("--lock", Path.Combine(baseDirectory, "ranger.lock"));
 bool verbose = pargs.Has("--verbose") || pargs.Has("-v");
 
-List<Repository> repositories = ReadRepositoriesFromJson(lassoPath);
-GitHubAuthData authData = JsonSerializer.Deserialize<GitHubAuthData>(File.ReadAllText(lassoAuthPath));
+List<Repository> repositories = ReadRepositoriesFromJson(jsonPath);
+GitHubAuthData authData = JsonSerializer.Deserialize<GitHubAuthData>(File.ReadAllText(authPath));
 
 ILogger logger = new ConsoleLogger { IsDebugEnabled = verbose };
 VersionManager versions = new VersionManager();
 CommandRunner commandRunner = new CommandRunner();
 GitHubOperations github = new GitHubOperations(commandRunner, logger);
-LockFileManager lockFileManager = new LockFileManager(lockFilePath);
+LockFileManager lockFileManager = new LockFileManager(lockPath);
 
 foreach (Repository repository in repositories)
 {
