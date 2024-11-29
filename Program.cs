@@ -48,10 +48,10 @@ async Task MainAsync(string[] args)
         {
             logger.Debug($"Obtaining tags...");
             List<RefData> tags = await github.GetRepoTagsAsync(repository.Url, authData.Username, authData.Token);
-            logger.Debug($"Tags: {string.Join(", ", tags)}");
+            logger.Debug($"Tags: {string.Join(", ", tags.Select(t => t.Name))}");
 
             List<RefData> validVersions = versions.FilterMatchingVersions(repository.Version, tags);
-            logger.Debug($"Valid version tags for {repository.Version}: {string.Join(", ", validVersions)}");
+            logger.Debug($"Valid version tags for {repository.Version}: {string.Join(", ", validVersions.Select(t => t.Name))}");
 
             refToUse = versions.GetHighestVersion(validVersions);
 
