@@ -27,14 +27,20 @@ async Task MainAsync(string[] args)
     string lockPath = pargs.GetString("--lock", Path.Combine(baseDirectory, "ranger.lock"));
     bool verbose = pargs.Has("--verbose") || pargs.Has("-v");
 
-    List<Repository> repositories = ReadRepositoriesFromJson(jsonPath);
-    GitHubAuthData authData = JsonSerializer.Deserialize<GitHubAuthData>(File.ReadAllText(authPath));
-
     ILogger logger = new ConsoleLogger { IsDebugEnabled = verbose };
     VersionManager versions = new VersionManager();
     CommandRunner commandRunner = new CommandRunner();
     GitHubOperations github = new GitHubOperations(commandRunner, logger);
     LockFileManager lockFileManager = new LockFileManager(lockPath);
+
+    List<Repository> repositories = ReadRepositoriesFromJson(jsonPath);
+    if (repositories.Count == 0)
+    {
+        logger.Warn("No repositories have been defined. Exiting.");
+        return;
+    }
+
+    GitHubAuthData authData = ReadAuthDataFromJson(authPath);
 
     foreach (Repository repository in repositories)
     {
@@ -124,10 +130,32 @@ async Task MainAsync(string[] args)
 
     List<Repository> ReadRepositoriesFromJson(string filePath)
     {
-        string jsonContent = File.ReadAllText(filePath);
-        JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        Dictionary<string, List<Repository>> data = JsonSerializer.Deserialize<Dictionary<string, List<Repository>>>(jsonContent, options);
-        return data?["repositories"] ?? new List<Repository>();
+        try
+        {
+            string jsonContent = File.ReadAllText(filePath);
+            JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            Dictionary<string, List<Repository>> data = JsonSerializer.Deserialize<Dictionary<string, List<Repository>>>(jsonContent, options);
+            return data?["repositories"] ?? new List<Repository>();
+        }
+        catch (FileNotFoundException)
+        {
+            logger.Error($"Ranger JSON file not found at {filePath}");
+            return new List<Repository>();
+        }
+    }
+
+    GitHubAuthData ReadAuthDataFromJson(string s)
+    {
+        try
+        {
+            string fileText = File.ReadAllText(s);
+            return JsonSerializer.Deserialize<GitHubAuthData>(fileText);
+        }
+        catch (FileNotFoundException)
+        {
+            logger.Warn($"Auth file not found at {s}. Access to repositories may be limited.");
+            return new GitHubAuthData();
+        }
     }
 
     async Task ObtainRepoFilesAsync(Repository repo, RefData refData, string username, string pat)
