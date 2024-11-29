@@ -1,4 +1,4 @@
-namespace Lasso;
+namespace RepoRanger;
 
 class GitHubAuthData
 {

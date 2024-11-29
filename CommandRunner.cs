@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace Lasso;
+namespace RepoRanger;
 
 public class CommandRunner
 {

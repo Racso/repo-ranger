@@ -1,4 +1,4 @@
-﻿namespace Lasso;
+﻿namespace RepoRanger;
 
 public static class FileUtils
 {

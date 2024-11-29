@@ -1,5 +1,6 @@
-﻿using Lasso;
-using NUnit.Framework;
+﻿using NUnit.Framework;
+
+namespace RepoRanger.Tests;
 
 [TestFixture]
 public class VersionManagerTests

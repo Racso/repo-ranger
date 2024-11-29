@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lasso", "Lasso.csproj", "{90B68925-DD56-449E-9341-27130356F058}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RepoRanger", "RepoRanger.csproj", "{90B68925-DD56-449E-9341-27130356F058}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

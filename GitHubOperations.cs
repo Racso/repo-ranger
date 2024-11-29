@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace Lasso;
+namespace RepoRanger;
 
 public class GitHubOperations
 {

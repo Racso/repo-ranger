@@ -1,3 +1,5 @@
+namespace RepoRanger;
+
 public struct RefData
 {
     public RefType Type { get; set; }

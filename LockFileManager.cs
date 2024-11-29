@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Lasso;
+namespace RepoRanger;
 
 public class LockFileManager
 {
