@@ -9,12 +9,16 @@ try
 {
     await MainAsync(args);
 }
+catch (GitHubOperationException)
+{
+}
 catch (Exception ex)
 {
     Console.WriteLine($"--------------------------------------------------");
     Console.WriteLine($"FATAL ERROR");
     Console.WriteLine($"{ex}");
 }
+
 
 async Task MainAsync(string[] args)
 {
@@ -152,7 +156,7 @@ async Task MainAsync(string[] args)
         }
         catch (FileNotFoundException)
         {
-            logger.Warn($"Auth file not found at {s}. Access to repositories may be limited.");
+            logger.Warn($"Auth file not found at {s}. Access to repositories may be limited. If you encounter access issues, please provide a valid auth file.");
             return new GitHubAuthData();
         }
     }

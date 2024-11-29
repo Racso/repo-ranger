@@ -31,14 +31,10 @@ public class GitHubOperations
 
         List<CommandOutputLine> resultLines = new();
         int resultCode = await commandRunner.RunCommandAsync(command, resultLines);
+        ThrowIfError(resultCode, resultLines);
 
         foreach (CommandOutputLine line in resultLines)
-        {
-            if (line.Type == CommandOutputLineType.Standard || resultCode == 0)
-                logger.Info(line.Text);
-            else
-                logger.Error(line.Text);
-        }
+            logger.Debug(line.Text); // Both standard and error streams are logged
     }
 
     public async Task<List<RefData>> GetRepoTagsAsync(string repoUrl, string username, string pat)
@@ -48,6 +44,8 @@ public class GitHubOperations
 
         List<CommandOutputLine> resultLines = new();
         int resultCode = await commandRunner.RunCommandAsync(command, resultLines);
+        ThrowIfError(resultCode, resultLines);
+
         List<RefData> output = new List<RefData>();
 
         foreach (CommandOutputLine line in resultLines)
@@ -65,10 +63,6 @@ public class GitHubOperations
                     });
                 }
             }
-            else if (resultCode != 0)
-            {
-                logger.Error(line.Text);
-            }
         }
 
         return output;
@@ -81,6 +75,7 @@ public class GitHubOperations
 
         List<CommandOutputLine> resultLines = new();
         int resultCode = await commandRunner.RunCommandAsync(command, resultLines);
+        ThrowIfError(resultCode, resultLines);
 
         foreach (CommandOutputLine line in resultLines)
         {
@@ -97,12 +92,26 @@ public class GitHubOperations
                     };
                 }
             }
-            else if (resultCode != 0)
-            {
-                logger.Error(line.Text);
-            }
         }
 
         return new RefData();
     }
+
+    private void ThrowIfError(int resultCode, List<CommandOutputLine> resultLines)
+    {
+        if (resultCode == 0)
+            return;
+
+        foreach (CommandOutputLine line in resultLines)
+        {
+            if (line.Type == CommandOutputLineType.Error)
+                logger.Error(line.Text);
+        }
+
+        throw new GitHubOperationException();
+    }
+}
+
+public class GitHubOperationException : Exception
+{
 }
