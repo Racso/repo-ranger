@@ -29,11 +29,12 @@ public class GitHubOperations
         string command = $"git clone --depth 1 --branch {refName} -c advice.detachedHead=false {urlWithCredentials} {destinationPath}";
         logger.Debug("Cloning repository...");
 
-        List<CommandRunner.ResultLine> resultLines = await commandRunner.RunCommandAsync(command);
+        List<CommandOutputLine> resultLines = new();
+        int resultCode = await commandRunner.RunCommandAsync(command, resultLines);
 
-        foreach (CommandRunner.ResultLine line in resultLines)
+        foreach (CommandOutputLine line in resultLines)
         {
-            if (line.Type == CommandRunner.ResultLineType.Standard)
+            if (line.Type == CommandOutputLineType.Standard || resultCode == 0)
                 logger.Info(line.Text);
             else
                 logger.Error(line.Text);
@@ -45,12 +46,13 @@ public class GitHubOperations
         string urlWithCredentials = repoUrl.Insert(8, $"{username}:{pat}@");
         string command = $"git ls-remote --tags {urlWithCredentials}";
 
-        List<CommandRunner.ResultLine> resultLines = await commandRunner.RunCommandAsync(command);
+        List<CommandOutputLine> resultLines = new();
+        int resultCode = await commandRunner.RunCommandAsync(command, resultLines);
         List<RefData> output = new List<RefData>();
 
-        foreach (CommandRunner.ResultLine line in resultLines)
+        foreach (CommandOutputLine line in resultLines)
         {
-            if (line.Type == CommandRunner.ResultLineType.Standard)
+            if (line.Type == CommandOutputLineType.Standard)
             {
                 Match match = Regex.Match(line.Text, @"(?<hash>[a-f0-9]+)\s+refs/tags/(?<tag>[v0-9.]+)$");
                 if (match.Success)
@@ -63,7 +65,7 @@ public class GitHubOperations
                     });
                 }
             }
-            else
+            else if (resultCode != 0)
             {
                 logger.Error(line.Text);
             }
@@ -77,11 +79,12 @@ public class GitHubOperations
         string urlWithCredentials = repoUrl.Insert(8, $"{username}:{pat}@");
         string command = $"git ls-remote --heads {urlWithCredentials} {branchName}";
 
-        List<CommandRunner.ResultLine> resultLines = await commandRunner.RunCommandAsync(command);
+        List<CommandOutputLine> resultLines = new();
+        int resultCode = await commandRunner.RunCommandAsync(command, resultLines);
 
-        foreach (CommandRunner.ResultLine line in resultLines)
+        foreach (CommandOutputLine line in resultLines)
         {
-            if (line.Type == CommandRunner.ResultLineType.Standard)
+            if (line.Type == CommandOutputLineType.Standard)
             {
                 Match match = Regex.Match(line.Text, @"(?<hash>[a-f0-9]+)\s+refs/heads/(?<branch>[^\s]+)$");
                 if (match.Success && match.Groups["branch"].Value == branchName)
@@ -94,7 +97,7 @@ public class GitHubOperations
                     };
                 }
             }
-            else
+            else if (resultCode != 0)
             {
                 logger.Error(line.Text);
             }

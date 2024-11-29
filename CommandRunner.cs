@@ -4,7 +4,7 @@ namespace RepoRanger;
 
 public class CommandRunner
 {
-    public async Task<List<ResultLine>> RunCommandAsync(string command)
+    public async Task<int> RunCommandAsync(string command, List<CommandOutputLine> resultLines)
     {
         var process = new Process
         {
@@ -19,41 +19,32 @@ public class CommandRunner
             }
         };
 
-        var resultLines = new List<ResultLine>();
-
-        process.OutputDataReceived += (sender, e) =>
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-            {
-                resultLines.Add(new ResultLine { Text = e.Data, Type = ResultLineType.Standard });
-            }
-        };
-
-        process.ErrorDataReceived += (sender, e) =>
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-            {
-                resultLines.Add(new ResultLine { Text = e.Data, Type = ResultLineType.Error });
-            }
-        };
+        process.OutputDataReceived += (_, e) => TryAddResultLine(e.Data, CommandOutputLineType.Standard);
+        process.ErrorDataReceived += (_, e) => TryAddResultLine(e.Data, CommandOutputLineType.Error);
 
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         await process.WaitForExitAsync();
 
-        return resultLines;
-    }
+        return process.ExitCode;
 
-    public struct ResultLine
-    {
-        public string Text { get; set; }
-        public ResultLineType Type { get; set; }
+        void TryAddResultLine(string line, CommandOutputLineType type)
+        {
+            if (!string.IsNullOrEmpty(line))
+                resultLines.Add(new CommandOutputLine { Text = line, Type = type });
+        }
     }
+}
 
-    public enum ResultLineType
-    {
-        Standard,
-        Error
-    }
+public struct CommandOutputLine
+{
+    public string Text { get; set; }
+    public CommandOutputLineType Type { get; set; }
+}
+
+public enum CommandOutputLineType
+{
+    Standard,
+    Error
 }
