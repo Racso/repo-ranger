@@ -80,7 +80,7 @@ async Task MainAsync(string[] args)
 
             if (string.IsNullOrEmpty(refToUse.Hash))
             {
-                logger.Error("No valid branch found for repository at {repository.Url}, branch {refName}.");
+                logger.Error($"No valid branch found for repository at {repository.Url}, branch {refName}.");
                 return;
             }
 
