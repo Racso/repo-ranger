@@ -3,6 +3,7 @@
 public class ProgramArgs
 {
     private Dictionary<string, string> rawMap;
+    private string command;
 
     public ProgramArgs()
     {
@@ -17,6 +18,8 @@ public class ProgramArgs
     {
         if (rawMap != null)
             throw new Exception($"Tried to initialize ProgramArgs more than once.");
+
+        command = args.Length > 0 && !args[0].StartsWith('-') ? args[0] : "";
 
         rawMap = new Dictionary<string, string>(args.Length);
         foreach (string arg in args)
@@ -37,6 +40,12 @@ public class ProgramArgs
 
     public int GetInt(string key, int defaultValue = 0)
         => int.TryParse(GetString(key), out int value) ? value : defaultValue;
+
+    public string GetCommand()
+        => command;
+
+    public bool IsCommand(string command)
+        => this.command == command;
 
     private Dictionary<string, string> GetMap()
     {
